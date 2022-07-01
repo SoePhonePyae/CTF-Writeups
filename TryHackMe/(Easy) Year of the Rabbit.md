@@ -7,7 +7,7 @@ Before we start doing anything, I'm gonna put this inside hosts as "rabbit.thm" 
 
 Nmap scan showed only 3 ports are open,21,22 and 80.
 
-We try to login ftp anonymously but couldn't do it and we don't have the credentials for ssh. 
+I tried to login ftp anonymously but couldn't do it and we don't have the credentials for ssh. 
 
 So, port 80 is the only place for us to start.
 
