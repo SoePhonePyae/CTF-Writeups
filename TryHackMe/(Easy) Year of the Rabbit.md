@@ -63,7 +63,7 @@ Ok. We got the password. There's a shared text file in ftp and when we open it-
 
 ![Brainfuck](https://github.com/SoePhonePyae/CTF-Writeups/blob/main/TryHackMe/Pics/8.goodoldbrainfuck.png)
 
-Brainfucc it is!! We could just search for an online decoder and just copy paster it. Very Easy.
+Brainfucc it is!! We could just search for an online decoder and just copy paste it. Very Easy.
 
 ![EZ Brainfuck](https://github.com/SoePhonePyae/CTF-Writeups/blob/main/TryHackMe/Pics/9.brainfuckdone.png)
 
